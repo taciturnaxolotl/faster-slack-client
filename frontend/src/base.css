@@ -1,4 +1,5 @@
 :root {
+    --titlebar-height: 52px;
     --inline-space: 1ch;
     --block-space: 1rem;
 
@@ -119,6 +120,25 @@ h3 {
     &:hover {
         --btn-bg: var(--color-primary-muted);
     }
+}
+
+.login-layout {
+    display: flex;
+    min-height: calc(100dvh - 52px);
+}
+
+.login-sidebar {
+    width: 40%;
+    background: url("/plane.png") center / cover no-repeat;
+}
+
+.login-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--inline-space) * 2);
 }
 
 .input {

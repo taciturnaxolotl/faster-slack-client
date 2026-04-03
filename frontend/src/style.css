@@ -25,5 +25,5 @@
 
 body {
     /* TODO: other oses support :sob: */
-    margin-top: 52px;
+    margin-top: var(--titlebar-height);
 }

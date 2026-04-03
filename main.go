@@ -39,6 +39,7 @@ func main() {
 		Description: "",
 		Services: []application.Service{
 			application.NewService(&GreetService{}),
+			application.NewService(&SlackAuthService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

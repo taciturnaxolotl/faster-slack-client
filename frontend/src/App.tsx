@@ -10,6 +10,8 @@ function AuthGuard(props: ParentProps) {
   return <>{props.children}</>;
 }
 
+console.log("Current User-Agent:", navigator.userAgent);
+
 function App() {
   return (
     <Router>

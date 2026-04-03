@@ -13,7 +13,7 @@
 .pad-lg { padding: calc(var(--block-space) * 2) calc(var(--inline-space) * 2); }
 
 .m-auto { margin: auto; }
-.full-height { min-height: calc(100dvh - 52px); }
+.full-height { min-height: calc(100dvh - var(--titlebar-height)); }
 
 .txt-xs { font-size: var(--text-xs); }
 .txt-sm { font-size: var(--text-sm); }
