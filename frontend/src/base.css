@@ -29,7 +29,7 @@
 
 body {
     font-family:
-        "Roboto",
+        "Lato",
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
@@ -94,7 +94,7 @@ h3 {
     color: var(--btn-color, var(--color-ink));
     font: inherit;
     font-size: var(--text-sm);
-    font-weight: 500;
+    font-weight: 700;
     cursor: pointer;
     transition: filter var(--transition-fast);
 

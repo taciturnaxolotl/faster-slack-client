@@ -9,11 +9,43 @@
     background: url("/plane.png") center / cover no-repeat;
 }
 
-.content {
+.contentContainer {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+}
+
+.content {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: var(--inline-space);
+    margin-right: 10%;
+    margin-left: 10%;
     gap: calc(var(--inline-space) * 2);
+}
+
+.heavy {
+    font-size: 1.1em;
+}
+
+h1 {
+    text-align: center;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 5px solid var(--color-primary-muted);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }

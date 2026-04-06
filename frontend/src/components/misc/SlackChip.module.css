@@ -1,0 +1,13 @@
+.slackChip {
+    background-color: #4a154b;
+    padding: 12px;
+    border-radius: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.slackIcon {
+    width: 64px;
+    height: 64px;
+}

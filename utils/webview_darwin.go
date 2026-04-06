@@ -14,6 +14,8 @@ package utils
 
 @interface WailsNavDelegate : NSObject <WKNavigationDelegate, WKUIDelegate>
 @property (nonatomic, copy) void (^onSlackURL)(NSString*);
+@property (nonatomic, assign) id<WKNavigationDelegate> originalNavDelegate;
+@property (nonatomic, assign) id<WKUIDelegate> originalUIDelegate;
 @end
 
 @implementation WailsNavDelegate
@@ -25,7 +27,23 @@ package utils
         self.onSlackURL(url);
         decisionHandler(WKNavigationActionPolicyCancel);
     } else {
-        decisionHandler(WKNavigationActionPolicyAllow);
+        if ([self.originalNavDelegate respondsToSelector:@selector(webView:decidePolicyForNavigationAction:decisionHandler:)]) {
+            [self.originalNavDelegate webView:webView decidePolicyForNavigationAction:action decisionHandler:decisionHandler];
+        } else {
+            decisionHandler(WKNavigationActionPolicyAllow);
+        }
+    }
+}
+
+- (void)webView:(WKWebView*)webView didCommitNavigation:(WKNavigation*)navigation {
+    if ([self.originalNavDelegate respondsToSelector:@selector(webView:didCommitNavigation:)]) {
+        [self.originalNavDelegate webView:webView didCommitNavigation:navigation];
+    }
+}
+
+- (void)webView:(WKWebView*)webView didFinishNavigation:(WKNavigation*)navigation {
+    if ([self.originalNavDelegate respondsToSelector:@selector(webView:didFinishNavigation:)]) {
+        [self.originalNavDelegate webView:webView didFinishNavigation:navigation];
     }
 }
 
@@ -33,7 +51,6 @@ package utils
     createWebViewWithConfiguration:(WKWebViewConfiguration*)configuration
     forNavigationAction:(WKNavigationAction*)navigationAction
     windowFeatures:(WKWindowFeatures*)windowFeatures {
-    // Handle target="_blank" links by loading in the same webview
     [webView loadRequest:navigationAction.request];
     return nil;
 }
@@ -65,6 +82,29 @@ void addUserScript(void* windowPtr, const char* js) {
     });
 }
 
+extern void cookiesCallback(const char*);
+
+void getAllCookies(void* windowPtr) {
+    WebviewWindow* win = (__bridge WebviewWindow*)windowPtr;
+    WKWebView* wv = win.webView;
+    if (wv == nil) {
+        cookiesCallback("[]");
+        return;
+    }
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [wv.configuration.websiteDataStore.httpCookieStore getAllCookies:^(NSArray<NSHTTPCookie*>* cookies) {
+            NSMutableArray* arr = [NSMutableArray new];
+            for (NSHTTPCookie* c in cookies) {
+                [arr addObject:@{@"name": c.name, @"value": c.value, @"domain": c.domain, @"path": c.path}];
+            }
+            NSData* data = [NSJSONSerialization dataWithJSONObject:arr options:0 error:nil];
+            NSString* result = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+            cookiesCallback([result UTF8String]);
+        }];
+    });
+}
+
 extern void slackURLCallback(const char*);
 
 void setNavDelegate(void* windowPtr, void (*callback)(const char*)) {
@@ -76,21 +116,28 @@ void setNavDelegate(void* windowPtr, void (*callback)(const char*)) {
     delegate.onSlackURL = ^(NSString* url) {
         callback([url UTF8String]);
     };
+    delegate.originalNavDelegate = wv.navigationDelegate;
+    delegate.originalUIDelegate = wv.UIDelegate;
     [delegateRefs addObject:delegate];
     dispatch_async(dispatch_get_main_queue(), ^{
         wv.navigationDelegate = delegate;
         wv.UIDelegate = delegate;
+        // Enable default website data store for persistent caching
+        WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
+        wv.configuration.websiteDataStore = dataStore;
     });
 }
 */
 import "C"
 import (
+	"fastslack/shared"
 	"unsafe"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 var slackURLHandler func(string)
+var cookiesHandler func([]shared.Cookie, error)
 
 func SetWebviewUserAgent(window application.Window, ua string) {
 	ptr := window.NativeWindow()
@@ -119,4 +166,14 @@ func InterceptSlackURL(window application.Window, handler func(string)) {
 		return
 	}
 	C.setNavDelegate(ptr, (*[0]byte)(C.slackURLCallback))
+}
+
+func GetAllCookies(window application.Window, callback func([]shared.Cookie, error)) {
+	ptr := window.NativeWindow()
+	if ptr == nil {
+		callback(nil, nil)
+		return
+	}
+	cookiesHandler = callback
+	C.getAllCookies(ptr)
 }
