@@ -15,6 +15,35 @@ export default function Home() {
     localStorage.getItem("last_selected_channel") || null,
   );
 
+  const [searchOpen, setSearchOpen] = createSignal(false);
+  const [searchQuery, setSearchQuery] = createSignal("");
+  const [searchIndex, setSearchIndex] = createSignal(0);
+
+  let searchInputRef: HTMLInputElement | undefined;
+
+  createEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        const nextState = !searchOpen();
+        setSearchOpen(nextState);
+        setSearchQuery("");
+        setSearchIndex(0);
+        
+        if (nextState) {
+          // Focus input on next tick to allow modal to render
+          setTimeout(() => {
+            if (searchInputRef) searchInputRef.focus();
+          }, 0);
+        }
+      } else if (e.key === 'Escape' && searchOpen()) {
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
   createEffect(() => {
     const channel = selectedChannel();
     if (channel) {
@@ -170,8 +199,98 @@ export default function Home() {
     ].sort((a,b) => b.updated - a.updated);
   };
 
+  const allChannelsAndDMs = () => {
+    return [
+      ...sortedChannels().map(ch => ({ id: ch.id, name: `#${ch.name}`, isChannel: true, raw: ch as any })),
+      ...dmList().map(dm => ({ id: dm.id, name: dm.name, isChannel: false, raw: dm as any }))
+    ];
+  };
+
+  const filteredSearchResults = () => {
+    const query = searchQuery().toLowerCase();
+    if (!query) return allChannelsAndDMs().slice(0, 20);
+    return allChannelsAndDMs().filter(item => item.name.toLowerCase().includes(query)).slice(0, 20);
+  };
+
+  createEffect(() => {
+    // Reset index when search results change
+    filteredSearchResults();
+    setSearchIndex(0);
+  });
+
+  const handleSearchKeydown = (e: KeyboardEvent) => {
+    const results = filteredSearchResults();
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSearchIndex((i) => Math.min(i + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSearchIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const selected = results[searchIndex()];
+      if (selected) {
+        setSelectedChannel(selected.id);
+        setSearchOpen(false);
+      }
+    }
+  };
+
   return (
     <div class={styles.layout}>
+      <Show when={searchOpen()}>
+        <div class={styles.searchOverlay} onClick={() => setSearchOpen(false)}>
+          <div class={styles.searchModal} onClick={(e) => e.stopPropagation()}>
+            <input 
+              ref={searchInputRef}
+              class={styles.searchInput} 
+              type="text" 
+              placeholder="Jump to..." 
+              autofocus 
+              spellcheck={false}
+              autocorrect="off"
+              autocomplete="off"
+              value={searchQuery()}
+              onInput={(e) => setSearchQuery(e.currentTarget.value)}
+              onKeyDown={handleSearchKeydown}
+            />
+            <div class={styles.searchResults}>
+              <For each={filteredSearchResults()}>
+                {(item, index) => (
+                  <div 
+                    class={styles.searchItem} 
+                    data-selected={index() === searchIndex() ? "true" : undefined}
+                    onMouseEnter={() => setSearchIndex(index())}
+                    onClick={() => {
+                      setSelectedChannel(item.id);
+                      setSearchOpen(false);
+                    }}
+                  >
+                    <Show when={item.isChannel}>
+                      <span class={styles.hash}>#</span>
+                      <span class={styles.itemName}>{item.raw.name}</span>
+                    </Show>
+                    <Show when={!item.isChannel}>
+                      <Show when={item.raw.is_mpdm && item.raw.mpdm_avatars.length > 0}>
+                        <div class={styles.itemAvatarGroup}>
+                          <For each={item.raw.mpdm_avatars.slice(0, 2)}>
+                            {(avatarUrl) => <img src={avatarUrl as string} class={styles.itemAvatarStacked} />}
+                          </For>
+                        </div>
+                      </Show>
+                      <Show when={!item.raw.is_mpdm && item.raw.avatar}>
+                        <img src={item.raw.avatar as string} class={styles.itemAvatar} />
+                      </Show>
+                      <span class={styles.itemName}>{item.name}</span>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </div>
+      </Show>
+      
       <div class={styles.sidebar}>
         <div class={styles.sectionHeader}>Channels</div>
         <Show
