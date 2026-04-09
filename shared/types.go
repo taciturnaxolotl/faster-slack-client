@@ -44,6 +44,8 @@ type Channel struct {
 		LastSet int64  `json:"last_set"`
 	} `json:"purpose"`
 
+	Members []string `json:"members,omitempty"`
+
 	// properties
 	Properties struct {
 		Tabs                []Tab `json:"tabs"`
@@ -72,6 +74,7 @@ type Tab struct {
 type Im struct {
 	ID         string `json:"id"`
 	Created    int64  `json:"created"`
+	Updated    int64  `json:"updated"`
 	IsIM       bool   `json:"is_im"`
 	IsArchived bool   `json:"is_archived"`
 	User       string `json:"user"` // the person you're dming

@@ -19,6 +19,7 @@ export class Channel {
     "creator": string;
     "topic": {"value": string, "creator": string, "last_set": number};
     "purpose": {"value": string, "creator": string, "last_set": number};
+    "members"?: string[];
 
     /**
      * properties
@@ -78,14 +79,18 @@ export class Channel {
      * Creates a new Channel instance from a string or object.
      */
     static createFrom($$source: any = {}): Channel {
-        const $$createField13_0 = $$createType5;
-        const $$createField14_0 = $$createType2;
+        const $$createField13_0 = $$createType0;
+        const $$createField14_0 = $$createType5;
+        const $$createField15_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("members" in $$parsedSource) {
+            $$parsedSource["members"] = $$createField13_0($$parsedSource["members"]);
+        }
         if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField13_0($$parsedSource["properties"]);
+            $$parsedSource["properties"] = $$createField14_0($$parsedSource["properties"]);
         }
         if ("previous_names" in $$parsedSource) {
-            $$parsedSource["previous_names"] = $$createField14_0($$parsedSource["previous_names"]);
+            $$parsedSource["previous_names"] = $$createField15_0($$parsedSource["previous_names"]);
         }
         return new Channel($$parsedSource as Partial<Channel>);
     }
@@ -123,6 +128,7 @@ export class Emoji {
 export class Im {
     "id": string;
     "created": number;
+    "updated": number;
     "is_im": boolean;
     "is_archived": boolean;
 
@@ -140,6 +146,9 @@ export class Im {
         }
         if (!("created" in $$source)) {
             this["created"] = 0;
+        }
+        if (!("updated" in $$source)) {
+            this["updated"] = 0;
         }
         if (!("is_im" in $$source)) {
             this["is_im"] = false;
@@ -164,10 +173,10 @@ export class Im {
      * Creates a new Im instance from a string or object.
      */
     static createFrom($$source: any = {}): Im {
-        const $$createField6_0 = $$createType6;
+        const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField6_0($$parsedSource["properties"]);
+            $$parsedSource["properties"] = $$createField7_0($$parsedSource["properties"]);
         }
         return new Im($$parsedSource as Partial<Im>);
     }
@@ -207,7 +216,7 @@ export class Message {
      * Creates a new Message instance from a string or object.
      */
     static createFrom($$source: any = {}): Message {
-        const $$createField9_0 = $$createType2;
+        const $$createField9_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("reply_users" in $$parsedSource) {
             $$parsedSource["reply_users"] = $$createField9_0($$parsedSource["reply_users"]);
@@ -387,20 +396,20 @@ export class WorkspaceSession {
 }
 
 // Private type creation functions
-const $$createType0 = Tab.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Tab.createFrom;
+const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $Create.Struct({
-    "type": $$createType2,
-    "user": $$createType2,
+    "type": $$createType0,
+    "user": $$createType0,
 });
 const $$createType4 = $Create.Nullable($$createType3);
 const $$createType5 = $Create.Struct({
-    "tabs": $$createType1,
+    "tabs": $$createType2,
     "posting_restricted_to": $$createType4,
 });
 const $$createType6 = $Create.Struct({
-    "tabs": $$createType1,
+    "tabs": $$createType2,
 });
 const $$createType7 = Message.createFrom;
 const $$createType8 = $Create.Array($$createType7);

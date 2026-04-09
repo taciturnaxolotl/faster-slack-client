@@ -26,6 +26,7 @@ func (c *Client) UserBoot(teamID string, minChannelUpdated int64) (*shared.Userb
 	if err := json.Unmarshal(raw, &resp); err != nil {
 		return nil, err
 	}
+
 	return &resp, nil
 }
 

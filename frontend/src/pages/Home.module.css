@@ -28,8 +28,62 @@
     cursor: pointer;
     border-radius: var(--radius-sm);
     margin: 0 8px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    min-height: 28px;
+}
+
+.item span, .item {
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+.itemName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.itemAvatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 8px;
+    object-fit: cover;
+}
+
+.itemAvatarGroup {
+    display: flex;
+    margin-right: 8px;
+    position: relative;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+}
+
+.itemAvatarStacked {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    object-fit: cover;
+    position: absolute;
+    box-sizing: border-box;
+}
+
+.itemAvatarStacked:nth-child(1) {
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+.itemAvatarStacked:nth-child(2) {
+    bottom: 0;
+    right: 0;
+    z-index: 2;
+    box-shadow: 0 0 0 2px var(--color-bg);
 }
 
 .item:hover {
