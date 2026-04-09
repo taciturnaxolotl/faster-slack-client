@@ -5,8 +5,6 @@ import (
 	"fastslack/slack"
 	"fastslack/store"
 	"fmt"
-	"encoding/json"
-	"os"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 )
@@ -109,12 +107,9 @@ func (s *SlackService) Boot() error {
 			return fmt.Errorf("userBoot failed for %s: %w", teamID, err)
 		}
 
-		sectionsResp, err := s.Client.GetChannelSections(teamID)
+		_, err = s.Client.GetChannelSections(teamID)
 		if err != nil {
 			fmt.Printf("GetChannelSections failed for %s: %v\n", teamID, err)
-		} else {
-			rawSections, _ := json.Marshal(sectionsResp)
-			os.WriteFile("sections_debug.json", rawSections, 0644)
 		}
 
 		var state *store.WorkspaceState
