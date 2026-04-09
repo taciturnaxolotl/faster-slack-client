@@ -186,7 +186,7 @@ type UserProfile struct {
 
 type Emoji struct {
 	Name    string `json:"name"`
-	Url     string `json:"value"`
+	Url     string `json:"url"`
 	Updated int64  `json:"updated"`
 }
 

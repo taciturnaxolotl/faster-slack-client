@@ -56,13 +56,23 @@ func (s *SlackService) ResolveEmojis(teamID string, names []string) ([]shared.Em
 	}
 
 	if len(missing) > 0 {
-		fetched, err := s.Client.GetEmojisInfo(teamID, missing)
+		// Just fetch the whole map if we have missing emojis (usually only happens once)
+		fetched, err := s.Client.GetEmojiList(teamID)
 		if err != nil {
 			return nil, err
 		}
-		for _, e := range fetched {
-			s.EmojiInfos.Add(e.Name, e)
-			result = append(result, e)
+		
+		// Update our cache with ALL emojis we just got
+		for name, url := range fetched {
+			e := shared.Emoji{Name: name, Url: url}
+			s.EmojiInfos.Add(name, e)
+		}
+
+		// Now satisfy the original request
+		for _, name := range missing {
+			if url, ok := fetched[name]; ok {
+				result = append(result, shared.Emoji{Name: name, Url: url})
+			}
 		}
 	}
 	return result, nil
@@ -134,6 +144,19 @@ func (s *SlackService) Boot() error {
 			emojiCache, _ := lru.New[string, shared.Emoji](5000)
 			s.EmojiInfos = emojiCache
 		}
+
+		// Pre-fetch emojis on boot
+		go func(tID string) {
+			fetched, err := s.Client.GetEmojiList(tID)
+			if err == nil {
+				for name, url := range fetched {
+					s.EmojiInfos.Add(name, shared.Emoji{Name: name, Url: url})
+				}
+				fmt.Printf("Pre-fetched %d emojis for %s\n", len(fetched), tID)
+			} else {
+				fmt.Printf("Failed to pre-fetch emojis for %s: %v\n", tID, err)
+			}
+		}(teamID)
 
 		fmt.Printf("Booted %s: %d channels, %d IMs\n", teamID, len(state.Channels), len(state.IMs))
 	}

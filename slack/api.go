@@ -94,28 +94,26 @@ func (c *Client) GetUserProfiles(teamID string, userIDs []string) ([]shared.User
 	return result.Results, nil
 }
 
-func (c *Client) GetEmojisInfo(teamID string, names []string) ([]shared.Emoji, error) {
-	raw, err := c.DoEdge(teamID, "emojis/info", map[string]any{
-		"names": names,
-	})
+func (c *Client) GetEmojiList(teamID string) (map[string]string, error) {
+	raw, err := c.Do(teamID, "emoji.list", nil)
 	if err != nil {
 		return nil, err
 	}
 
 	var result struct {
-		Results []shared.Emoji `json:"results"`
-		Ok      bool           `json:"ok"`
-		Error   string         `json:"error,omitempty"`
+		Emoji map[string]string `json:"emoji"`
+		Ok    bool              `json:"ok"`
+		Error string            `json:"error,omitempty"`
 	}
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
 
 	if !result.Ok {
-		return nil, fmt.Errorf("failed to fetch emoji info: %s", result.Error)
+		return nil, fmt.Errorf("failed to fetch emoji list: %s", result.Error)
 	}
 
-	return result.Results, nil
+	return result.Emoji, nil
 }
 
 func (c *Client) GetChannelSections(teamID string) (*shared.ChannelSectionsResponse, error) {

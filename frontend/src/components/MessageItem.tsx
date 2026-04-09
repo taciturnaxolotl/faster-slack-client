@@ -2,6 +2,7 @@ import { Show } from "solid-js";
 import type {
   Message,
   UserProfile,
+  Emoji,
 } from "../../bindings/fastslack/shared/models";
 import { parseSlackMarkdown } from "../utils/markdown";
 import { formatMessageTime } from "../utils/time";
@@ -13,6 +14,7 @@ export default function MessageItem(props: {
   message: Message;
   profile?: UserProfile;
   allProfiles?: Record<string, UserProfile>;
+  emojis?: Record<string, Emoji>;
   showUser?: boolean;
   workspaceID: string;
 }) {
@@ -50,7 +52,7 @@ export default function MessageItem(props: {
             </Show>
           </div>
         </Show>
-        <div class={styles.text}>{parseSlackMarkdown(props.message.text, props.allProfiles)}</div>
+        <div class={styles.text}>{parseSlackMarkdown(props.message.text, props.allProfiles, props.emojis)}</div>
         <Show when={props.message.reply_count && props.message.reply_count > 0}>
           <ThreadRepliesButton
             message={props.message}

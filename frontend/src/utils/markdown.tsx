@@ -1,11 +1,11 @@
 import { JSX } from "solid-js";
 import styles from "../components/MessageItem.module.css";
-import { UserProfile } from "../../bindings/fastslack/shared/models";
+import { UserProfile, Emoji } from "../../bindings/fastslack/shared/models";
 
 // Slack markdown uses a custom syntax known as mrkdwn.
 // See: https://api.slack.com/reference/surfaces/formatting
 
-export function parseSlackMarkdown(text: string, profiles?: Record<string, UserProfile>): JSX.Element[] {
+export function parseSlackMarkdown(text: string, profiles?: Record<string, UserProfile>, emojis?: Record<string, Emoji>): JSX.Element[] {
   if (!text) return [];
 
   const elements: JSX.Element[] = [];
@@ -20,7 +20,8 @@ export function parseSlackMarkdown(text: string, profiles?: Record<string, UserP
   // 5. Italic: _italic_
   // 6. Strikethrough: ~strike~
   // 7. Blockquotes: > quote
-  const regex = /(```[\s\S]*?```)|(`[^`]+`)|(<[^>]+>)|(\*[^\*]+\*)|(_[^_]+_)|(~[^~]+~)|(^>.*$)/gm;
+  // 8. Emojis: :smile:
+  const regex = /(```[\s\S]*?```)|(`[^`]+`)|(<[^>]+>)|(\*[^\*]+\*)|(_[^_]+_)|(~[^~]+~)|(^>.*$)|(:[a-zA-Z0-9_\-+]+:)/gm;
 
   let match;
   while ((match = regex.exec(text)) !== null) {
@@ -107,6 +108,24 @@ export function parseSlackMarkdown(text: string, profiles?: Record<string, UserP
           <span innerHTML={decodeHtmlEntities(quoteContent)} />
         </blockquote>
       );
+    } else if (match[8]) {
+      // Emoji
+      const emojiName = matchText.slice(1, -1);
+      
+      if (emojis && emojis[emojiName]) {
+        // We have an image for this emoji
+        elements.push(
+          <img 
+            src={emojis[emojiName].url} 
+            alt={matchText} 
+            title={matchText}
+            class={styles.customEmoji}
+          />
+        );
+      } else {
+        // Fallback to unicode
+        elements.push(<span class="emoji" title={matchText}>{getEmojiChar(emojiName) || matchText}</span>);
+      }
     }
 
     currentIndex = regex.lastIndex;
@@ -152,4 +171,135 @@ function processLineBreaks(elements: JSX.Element[]): JSX.Element[] {
     }
     
     return processed;
+}
+
+// Basic emoji map to cover common ones; ideally this would be replaced with an emoji library
+function getEmojiChar(name: string): string | null {
+  const map: Record<string, string> = {
+    'smile': '😄',
+    'smiley': '😃',
+    'grinning': '😀',
+    'blush': '😊',
+    'relaxed': '☺️',
+    'wink': '😉',
+    'heart_eyes': '😍',
+    'kissing_heart': '😘',
+    'kissing_closed_eyes': '😚',
+    'kissing': '😗',
+    'kissing_smiling_eyes': '😙',
+    'stuck_out_tongue_winking_eye': '😜',
+    'stuck_out_tongue_closed_eyes': '😝',
+    'stuck_out_tongue': '😛',
+    'flushed': '😳',
+    'grin': '😁',
+    'pensive': '😔',
+    'relieved': '😌',
+    'unamused': '😒',
+    'disappointed': '😞',
+    'persevere': '😣',
+    'cry': '😢',
+    'joy': '😂',
+    'sob': '😭',
+    'sleepy': '😪',
+    'disappointed_relieved': '😥',
+    'cold_sweat': '😰',
+    'sweat_smile': '😅',
+    'sweat': '😓',
+    'weary': '😩',
+    'tired_face': '😫',
+    'fearful': '😨',
+    'scream': '😱',
+    'angry': '😠',
+    'rage': '😡',
+    'triumph': '😤',
+    'confounded': '😖',
+    'laughing': '😆',
+    'yum': '😋',
+    'mask': '😱',
+    'sunglasses': '😎',
+    'sleeping': '😴',
+    'dizzy_face': '😵',
+    'astonished': '😲',
+    'worried': '😟',
+    'frowning': '😦',
+    'anguished': '😧',
+    'imp': '👿',
+    'open_mouth': '😮',
+    'grimacing': '😬',
+    'neutral_face': '😐',
+    'confused': '😕',
+    'hushed': '😯',
+    'smirk': '😏',
+    'expressionless': '😑',
+    'man_shrugging': '🤷‍♂️',
+    'woman_shrugging': '🤷‍♀️',
+    'joy_cat': '😹',
+    'thumbsup': '👍',
+    '+1': '👍',
+    '-1': '👎',
+    'thumbsdown': '👎',
+    'ok_hand': '👌',
+    'punch': '👊',
+    'fist': '✊',
+    'v': '✌️',
+    'wave': '👋',
+    'hand': '✋',
+    'open_hands': '👐',
+    'point_up': '☝️',
+    'point_down': '👇',
+    'point_left': '👈',
+    'point_right': '👉',
+    'raised_hands': '🙌',
+    'pray': '🙏',
+    'point_up_2': '👆',
+    'clap': '👏',
+    'muscle': '💪',
+    'metal': '💪',
+    'middle_finger': '🖕',
+    'fu': '🖕',
+    'tada': '🎉',
+    'fire': '🔥',
+    'sparkles': '✨',
+    'star': '⭐',
+    'star2': '🌟',
+    'dizzy': '💫',
+    'boom': '💥',
+    'collision': '💥',
+    'anger': '💢',
+    'sweat_drops': '💦',
+    'dash': '💨',
+    'zzz': '💤',
+    'hankey': '💩',
+    'poop': '💩',
+    'shit': '💩',
+    'ghost': '👻',
+    'skull': '💀',
+    'alien': '👽',
+    'space_invader': '👾',
+    'bow': '🙇',
+    'heart': '❤️',
+    'blue_heart': '💙',
+    'green_heart': '💚',
+    'yellow_heart': '💛',
+    'purple_heart': '💜',
+    'broken_heart': '💔',
+    'two_hearts': '💕',
+    'sparkling_heart': '💖',
+    'heartpulse': '💗',
+    'cupid': '💝',
+    '100': '💯',
+    'rocket': '🚀',
+    'star-struck': '🤩',
+    'partying_face': '🥳',
+    'face_with_monocle': '🧐',
+    'exploding_head': '🤯',
+    'thought_balloon': '💭',
+    'speech_balloon': '💬',
+    'eyes': '👀',
+    'eye': '👁️',
+    'thinking_face': '🤔',
+    'face_palm': '🤦',
+    'shrug': '🤷'
+  };
+  return map[name] || null;
 }

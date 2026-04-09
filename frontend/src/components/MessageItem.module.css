@@ -125,3 +125,11 @@
     font-size: var(--text-xs);
     color: var(--color-ink-muted);
 }
+
+.customEmoji {
+    height: 1.4em;
+    width: 1.4em;
+    vertical-align: text-bottom;
+    display: inline-block;
+    object-fit: contain;
+}

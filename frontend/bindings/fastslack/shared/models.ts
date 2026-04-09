@@ -159,7 +159,7 @@ export class ChannelSection {
 
 export class Emoji {
     "name": string;
-    "value": string;
+    "url": string;
     "updated": number;
 
     /** Creates a new Emoji instance. */
@@ -167,8 +167,8 @@ export class Emoji {
         if (!("name" in $$source)) {
             this["name"] = "";
         }
-        if (!("value" in $$source)) {
-            this["value"] = "";
+        if (!("url" in $$source)) {
+            this["url"] = "";
         }
         if (!("updated" in $$source)) {
             this["updated"] = 0;

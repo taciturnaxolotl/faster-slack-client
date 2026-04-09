@@ -1,9 +1,10 @@
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import styles from "./MessageList.module.css";
-import { Message, UserProfile } from "../../bindings/fastslack/shared";
+import { Message, UserProfile, Emoji } from "../../bindings/fastslack/shared";
 import {
   GetMessages,
   ResolveUsers,
+  ResolveEmojis,
 } from "../../bindings/fastslack/slackservice";
 import MessageItem from "./MessageItem";
 import { chatStore, setChatStore, scrollPositions } from "../ChatStore";
@@ -17,19 +18,26 @@ export default function MessageList(props: {
   const [loading, setLoading] = createSignal(false);
   const [fetchingOlder, setFetchingOlder] = createSignal(false);
   const [profiles, setProfiles] = createSignal<Record<string, UserProfile>>({});
+  const [emojis, setEmojis] = createSignal<Record<string, Emoji>>({});
 
   const messages = () => chatStore.messages;
 
-  const fetchProfiles = async (msgs: Message[]) => {
+  const fetchProfilesAndEmojis = async (msgs: Message[]) => {
     const userIDs = new Set(msgs.map((m) => m.user));
+    const emojiNames = new Set<string>();
     
-    // Also find mentioned users in text
+    // Also find mentioned users and emojis in text
     for (const msg of msgs) {
       if (msg.text) {
-        const regex = /<@(U[A-Z0-9]+|W[A-Z0-9]+)(?:\|[^>]+)?>/g;
+        const userRegex = /<@(U[A-Z0-9]+|W[A-Z0-9]+)(?:\|[^>]+)?>/g;
         let match;
-        while ((match = regex.exec(msg.text)) !== null) {
+        while ((match = userRegex.exec(msg.text)) !== null) {
           userIDs.add(match[1]);
+        }
+
+        const emojiRegex = /:([a-zA-Z0-9_\-+]+):/g;
+        while ((match = emojiRegex.exec(msg.text)) !== null) {
+          emojiNames.add(match[1]);
         }
       }
     }
@@ -38,6 +46,13 @@ export default function MessageList(props: {
     const profileMap: Record<string, UserProfile> = {};
     for (const p of resolved) profileMap[p.id] = p;
     setProfiles((prev) => ({ ...prev, ...profileMap }));
+
+    if (emojiNames.size > 0) {
+      const resolvedEmojis = await ResolveEmojis(props.teamID, Array.from(emojiNames));
+      const emojiMap: Record<string, Emoji> = {};
+      for (const e of resolvedEmojis) emojiMap[e.name] = e;
+      setEmojis((prev) => ({ ...prev, ...emojiMap }));
+    }
   };
 
   const loadMessages = async (id: string) => {
@@ -49,7 +64,7 @@ export default function MessageList(props: {
         messages: [...res.messages],
         nextCursor: res.next_cursor || null,
       });
-      fetchProfiles(res.messages);
+      fetchProfilesAndEmojis(res.messages);
     }
     setLoading(false);
   };
@@ -68,7 +83,7 @@ export default function MessageList(props: {
           nextCursor: res.next_cursor || null,
         });
 
-        fetchProfiles(res.messages);
+        fetchProfilesAndEmojis(res.messages);
       }
     } finally {
       setFetchingOlder(false);
@@ -121,6 +136,7 @@ export default function MessageList(props: {
               message={msg}
               profile={profiles()[msg.user]}
               allProfiles={profiles()}
+              emojis={emojis()}
               showUser={showHeader()}
               workspaceID={props.teamID}
             />
