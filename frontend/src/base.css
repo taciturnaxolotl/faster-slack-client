@@ -17,6 +17,7 @@
 
     --transition-fast: 100ms ease;
     --transition-normal: 200ms ease;
+    overscroll-behavior: none;
 }
 
 *,
@@ -52,6 +53,7 @@ body {
     -webkit-text-size-adjust: 100%;
     user-select: none;
     -webkit-user-select: none;
+    overscroll-behavior: none;
 }
 
 a {
@@ -96,14 +98,14 @@ h3 {
     font-size: var(--text-sm);
     font-weight: 700;
     cursor: pointer;
-    transition: filter var(--transition-fast);
+    transition: opacity var(--transition-fast);
 
     &:hover {
-        filter: brightness(0.92);
+        opacity: 0.85;
     }
 
     &:active {
-        filter: brightness(0.85);
+        opacity: 0.75;
     }
 }
 

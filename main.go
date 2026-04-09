@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	_ "embed"
+	"fastslack/slack"
+	"fastslack/store"
 	"log"
 	"time"
 
@@ -34,14 +36,40 @@ func main() {
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
+	slackService := &SlackService{}
 	authService := &SlackAuthService{}
+
+	if session, err := store.LoadSession(); err != nil {
+		log.Printf("Failed to load session: %v", err)
+	} else if session != nil {
+		client := slack.NewClient(session)
+		// Verify token is still valid
+		valid := false
+		for teamID := range session.Workspaces {
+			if _, err := client.Do(teamID, "auth.test", nil); err == nil {
+				valid = true
+				break
+			}
+		}
+		if valid {
+			log.Println("Loaded saved session (verified)")
+			authService.Session = session
+			slackService.Client = client
+			if err := slackService.Boot(); err != nil {
+				log.Printf("Boot error: %v", err)
+			}
+		} else {
+			log.Println("Saved session expired, clearing")
+			store.ClearSession()
+		}
+	}
 
 	app := application.New(application.Options{
 		Name:        "faster-slack-client",
 		Description: "",
 		Services: []application.Service{
-			application.NewService(&GreetService{}),
 			application.NewService(authService),
+			application.NewService(slackService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -63,6 +91,11 @@ func main() {
 	})
 
 	authService.mainWindow = mainWindow
+	authService.SlackService = slackService
+
+	if authService.Session != nil {
+		mainWindow.Maximise()
+	}
 
 	// Create a goroutine that emits an event containing the current time every second.
 	// The frontend can listen to this event and update the UI accordingly.

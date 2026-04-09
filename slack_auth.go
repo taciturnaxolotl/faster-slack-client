@@ -1,20 +1,15 @@
 package main
 
 import (
-	"crypto/sha256"
-	"errors"
 	"fastslack/shared"
+	"fastslack/slack"
+	"fastslack/store"
 	"fastslack/utils"
-	"fmt"
-	"io"
-	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"strings"
 
 	_ "embed"
 
-	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -22,123 +17,66 @@ import (
 //go:embed scripts/login_style.js
 var loginStyleScript string
 
-type slackAuthResponse struct {
-    OK           bool                       `json:"ok"`
-    TokenResults map[string]slackTokenResult `json:"token_results"`
-}
-
-type slackTokenResult struct {
-    OK   bool   `json:"ok"`
-    User string `json:"user"`
-    Team struct {
-        ID   string `json:"id"`
-        Name string `json:"name"`
-        URL  string `json:"url"`
-    } `json:"team"`
-}
-
-func RedeemAuthCookies(magicToken string, workspaceId string, cookies []shared.Cookie) (*shared.SlackSession, error) {
-	jar, _ := cookiejar.New(nil)
-	client := &http.Client{
-		Jar: jar,
-	}
-
-	endpoint := fmt.Sprintf("https://app.slack.com/api/auth.loginMagicBulk?magic_tokens=z-app-%s-%s&ssb=1", workspaceId, magicToken)
-	targetURL, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, err
-	}
-	var httpCookies []*http.Cookie
-	for _, c := range cookies {
-		httpCookies = append(httpCookies, &http.Cookie{
-			Name:  c.Name,
-			Value: c.Value,
-		})
-	}
-
-	client.Jar.SetCookies(targetURL, httpCookies)
-
-	req, err := http.NewRequest("POST", endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_6_0) AppleWebKit/537.36 (KHTML, like Gecko) Slack/4.48.102 Chrome/144.0.7559.236 Electron/40.8.2 Safari/537.36")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var dCookie = ""
-	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "d" {
-			dCookie = cookie.Value
-		}
-	}
-	if !found {
-		return nil, errors.New("no d cookie found")
-	}
-
-	body, _ := io.ReadAll(resp.Body)
-	json := string(body)
-
-	session := shared.SlackSession{
-		DCookie:
-	}
-
-	return
-}
-
-func generateSSBParams() string {
-	instanceID := uuid.New().String()
-
-	h := sha256.New()
-	h.Write([]byte("faster-slack-client-" + instanceID))
-	vid := fmt.Sprintf("%x", h.Sum(nil))[:32]
-
-	version := "4.48.102"
-
-	return fmt.Sprintf("ssb_vid=%s&ssb_instance_id=%s&v=%s&from_desktop_app=1", vid, instanceID, version)
-}
-
 type SlackAuthService struct {
-	mainWindow  *application.WebviewWindow
-	loginWindow *application.WebviewWindow
+	mainWindow   *application.WebviewWindow
+	loginWindow  *application.WebviewWindow
+	Session      *shared.SlackSession
+	SlackService *SlackService
 }
 
 func (s *SlackAuthService) SlackAuthSuccess(appUrl string) {
 	utils.GetAllCookies(s.loginWindow, func(cookies []shared.Cookie, err error) {
-
-		// get the magic token from the url
 		u, _ := url.Parse(appUrl)
 		parts := strings.Split(u.Path, "/")
 		magicToken := parts[len(parts)-1]
 		workspaceId := u.Host
 
-		_ = magicToken
+		dCookie, err := slack.RedeemAuthCookies(magicToken, workspaceId, cookies)
+		if err != nil {
+			println("Auth error:", err.Error())
+			return
+		}
 
-		println("Cookies:", cookies)
-		println("Magic Token:", magicToken)
-		println("App URL:", appUrl)
+		session, err := slack.FetchTokens(dCookie)
+		if err != nil {
+			println("Token fetch error:", err.Error())
+			return
+		}
 
-		// get a d cookie
-		RedeemAuthCookies(magicToken, workspaceId, cookies)
+		s.Session = session
+		s.SlackService.Client = slack.NewClient(session)
+
+		if err := store.SaveSession(session); err != nil {
+			println("Failed to save session:", err.Error())
+		}
 
 		s.loginWindow.Close()
 
-		// emit the signal to stop loading
+		if err := s.SlackService.Boot(); err != nil {
+			println("Boot error:", err.Error())
+			return
+		}
+
 		app := application.Get()
 		app.Event.Emit("auth:loading", false)
-	})
+		app.Event.Emit("auth:success", true)
 
+	})
+}
+
+func (s *SlackAuthService) MaximiseWindow() {
+	s.mainWindow.Focus()
+	s.mainWindow.Maximise()
+}
+
+func (s *SlackAuthService) GetSession() *shared.SlackSession {
+	return s.Session
 }
 
 func (s *SlackAuthService) StartLogin() {
 	app := application.Get()
 	app.Event.Emit("auth:loading", true)
-	loginURL := "https://app.slack.com/ssb/signin?" + generateSSBParams()
+	loginURL := "https://app.slack.com/ssb/signin?" + slack.GenerateSSBParams()
 
 	mx, my := s.mainWindow.Position()
 
@@ -171,4 +109,16 @@ func (s *SlackAuthService) StartLogin() {
 	})
 
 	s.loginWindow.Show()
+}
+
+func (s *SlackAuthService) IsLoggedIn() bool {
+	return s.Session != nil
+}
+
+func (s *SlackAuthService) Logout() {
+	store.ClearSession()
+	s.Session = nil
+	s.SlackService.Client = nil
+	app := application.Get()
+	app.Event.Emit("auth:logout", true)
 }

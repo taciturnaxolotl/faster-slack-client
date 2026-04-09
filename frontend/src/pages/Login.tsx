@@ -1,12 +1,21 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, createEffect, Show } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import { StartLogin } from "../../bindings/fastslack/slackauthservice";
 import styles from "./Login.module.css";
 import { MdRoundArrow_forward } from "solid-icons/md";
-
 import { Events } from "@wailsio/runtime";
+import { useAuth } from "../AuthContext";
 
 export default function Login() {
   const [loading, setLoading] = createSignal(false);
+  const { authed } = useAuth();
+  const navigate = useNavigate();
+
+  createEffect(() => {
+    if (authed()) {
+      navigate("/");
+    }
+  });
 
   const handleLogin = () => {
     StartLogin();
