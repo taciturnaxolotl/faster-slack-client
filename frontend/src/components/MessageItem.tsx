@@ -3,6 +3,8 @@ import type {
   Message,
   UserProfile,
 } from "../../bindings/fastslack/shared/models";
+import { parseSlackMarkdown } from "../utils/markdown";
+import { formatMessageTime } from "../utils/time";
 import styles from "./MessageItem.module.css";
 import ClankerChip from "./misc/ClankerChip";
 import ThreadRepliesButton from "./misc/ThreadRepliesButton";
@@ -10,6 +12,7 @@ import ThreadRepliesButton from "./misc/ThreadRepliesButton";
 export default function MessageItem(props: {
   message: Message;
   profile?: UserProfile;
+  allProfiles?: Record<string, UserProfile>;
   showUser?: boolean;
   workspaceID: string;
 }) {
@@ -31,17 +34,6 @@ export default function MessageItem(props: {
             class={styles.avatar}
           />
         </Show>
-        <Show when={props.showUser == false}>
-          <div class={styles.time}>
-            {new Date(parseInt(props.message.ts) * 1000).toLocaleTimeString(
-              [],
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-              },
-            )}
-          </div>
-        </Show>
       </div>
       <div class={styles.right}>
         <Show when={props.showUser && props.profile}>
@@ -50,21 +42,15 @@ export default function MessageItem(props: {
               {props.profile!.profile.display_name ||
                 props.profile!.profile.real_name}
             </span>
-            <div class="time-right">
-              {new Date(parseInt(props.message.ts) * 1000).toLocaleTimeString(
-                [],
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                },
-              )}
+            <div class={styles.timestamp}>
+              {formatMessageTime(props.message.ts)}
             </div>
             <Show when={props.profile?.is_bot}>
               <ClankerChip />
             </Show>
           </div>
         </Show>
-        <span class={styles.text}>{props.message.text}</span>
+        <div class={styles.text}>{parseSlackMarkdown(props.message.text, props.allProfiles)}</div>
         <Show when={props.message.reply_count && props.message.reply_count > 0}>
           <ThreadRepliesButton
             message={props.message}

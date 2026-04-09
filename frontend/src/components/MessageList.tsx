@@ -21,8 +21,20 @@ export default function MessageList(props: {
   const messages = () => chatStore.messages;
 
   const fetchProfiles = async (msgs: Message[]) => {
-    const userIDs = [...new Set(msgs.map((m) => m.user))];
-    const resolved = await ResolveUsers(props.teamID, userIDs);
+    const userIDs = new Set(msgs.map((m) => m.user));
+    
+    // Also find mentioned users in text
+    for (const msg of msgs) {
+      if (msg.text) {
+        const regex = /<@(U[A-Z0-9]+|W[A-Z0-9]+)(?:\|[^>]+)?>/g;
+        let match;
+        while ((match = regex.exec(msg.text)) !== null) {
+          userIDs.add(match[1]);
+        }
+      }
+    }
+
+    const resolved = await ResolveUsers(props.teamID, Array.from(userIDs));
     const profileMap: Record<string, UserProfile> = {};
     for (const p of resolved) profileMap[p.id] = p;
     setProfiles((prev) => ({ ...prev, ...profileMap }));
@@ -108,6 +120,7 @@ export default function MessageList(props: {
             <MessageItem
               message={msg}
               profile={profiles()[msg.user]}
+              allProfiles={profiles()}
               showUser={showHeader()}
               workspaceID={props.teamID}
             />

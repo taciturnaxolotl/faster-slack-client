@@ -24,6 +24,54 @@
     word-break: break-word;
 }
 
+.text a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.text a:hover {
+    text-decoration: underline;
+}
+
+.text blockquote {
+    border-left: 4px solid var(--color-border);
+    padding-left: 12px;
+    margin: 4px 0;
+    color: var(--color-ink-muted);
+}
+
+.text pre {
+    background: var(--color-canvas-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 8px;
+    margin: 4px 0;
+    overflow-x: auto;
+}
+
+.text code {
+    font-family: monospace;
+    background: var(--color-canvas-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 0.9em;
+}
+
+.text pre code {
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.text .mention {
+    color: var(--color-primary);
+    background: var(--color-primary-transparent);
+    padding: 0 4px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
 .left {
     flex: 0 0 40px;
     display: flex;
@@ -71,4 +119,9 @@
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+.timestamp {
+    font-size: var(--text-xs);
+    color: var(--color-ink-muted);
 }
