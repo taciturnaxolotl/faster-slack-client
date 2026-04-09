@@ -1,6 +1,6 @@
-import { createResource, createSignal, For, Show, createEffect } from "solid-js";
+  import { createResource, createSignal, For, Show, createEffect, createMemo } from "solid-js";
 import { useAuth } from "../AuthContext";
-import { GetChannels, GetIMs, ResolveUsers } from "../../bindings/fastslack/slackservice";
+import { GetChannels, GetIMs, ResolveUsers, GetChannelSections, GetChannelSectionsPrefs, SetChannelSectionCollapsed } from "../../bindings/fastslack/slackservice";
 import { UserProfile } from "../../bindings/fastslack/shared";
 import styles from "./Home.module.css";
 import { Logout } from "../../bindings/fastslack/slackauthservice";
@@ -11,6 +11,7 @@ export default function Home() {
 
   const [channels] = createResource(workspace, (teamID) => GetChannels(teamID));
   const [ims] = createResource(workspace, (teamID) => GetIMs(teamID));
+  const [sections] = createResource(workspace, (teamID) => GetChannelSections(teamID));
   const [selectedChannel, setSelectedChannel] = createSignal<string | null>(
     localStorage.getItem("last_selected_channel") || null,
   );
@@ -236,6 +237,96 @@ export default function Home() {
     }
   };
 
+  const [collapsedSections, setCollapsedSections] = createSignal<Record<string, boolean>>(
+    JSON.parse(localStorage.getItem("collapsed_sections") || "{}")
+  );
+
+  const [rawPrefs, setRawPrefs] = createSignal<Record<string, any>>({});
+
+  createEffect(() => {
+    const teamID = workspace();
+    if (teamID) {
+      GetChannelSectionsPrefs(teamID).then((prefsStr) => {
+        if (prefsStr) {
+          try {
+            const prefs = JSON.parse(prefsStr);
+            setRawPrefs(prefs);
+            const collapsed: Record<string, boolean> = {};
+            for (const [id, opts] of Object.entries(prefs)) {
+              if ((opts as any).sidebar === "hid") {
+                collapsed[id] = true;
+              }
+            }
+            setCollapsedSections(prev => {
+              const merged = { ...prev, ...collapsed };
+              localStorage.setItem("collapsed_sections", JSON.stringify(merged));
+              return merged;
+            });
+          } catch (e) {
+            console.error("Failed to parse channel_sections prefs", e);
+          }
+        }
+      });
+    }
+  });
+
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections(prev => {
+      const next = { ...prev, [sectionId]: !prev[sectionId] };
+      localStorage.setItem("collapsed_sections", JSON.stringify(next));
+
+      // Sync back to slack
+      const teamID = workspace();
+      if (teamID) {
+         const prefs = { ...rawPrefs() };
+         if (!prefs[sectionId]) {
+            prefs[sectionId] = { c: "0" };
+         }
+         
+         if (next[sectionId]) {
+            prefs[sectionId].sidebar = "hid";
+         } else {
+            delete prefs[sectionId].sidebar;
+            // slack seems to set active sometimes or just omit it, let's omit for simplicity
+         }
+         setRawPrefs(prefs);
+         SetChannelSectionCollapsed(teamID, JSON.stringify(prefs));
+      }
+
+      return next;
+    });
+  };
+
+  const sectionedIds = createMemo(() => {
+    const ids = new Set<string>();
+    const sect = sections();
+    if (sect) {
+      sect.forEach(s => {
+        s.channel_ids_page?.channel_ids?.forEach(id => ids.add(id));
+      });
+    }
+    return ids;
+  });
+
+  const orphanedChannels = createMemo(() => {
+    const chs = channels();
+    if (!chs || !sections()) return [];
+    const ids = sectionedIds();
+    return chs.filter(c => !c.is_archived && !c.is_mpim && !ids.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const orphanedDMs = createMemo(() => {
+    const ids = sectionedIds();
+    if (!ims() || !sections()) return [];
+    return dmList().filter(d => !ids.has(d.id) && !d.is_bot && d.id !== "USLACKBOT");
+  });
+
+  const orphanedApps = createMemo(() => {
+    const ids = sectionedIds();
+    if (!ims() || !sections()) return [];
+    return dmList().filter(d => !ids.has(d.id) && (d.is_bot || d.id === "USLACKBOT"));
+  });
+
   return (
     <div class={styles.layout}>
       <Show when={searchOpen()}>
@@ -292,60 +383,87 @@ export default function Home() {
       </Show>
       
       <div class={styles.sidebar}>
-        <div class={styles.sectionHeader}>Channels</div>
-        <Show
-          when={!channels.loading}
-          fallback={<div class={styles.loading}>Loading...</div>}
-        >
-          <For each={sortedChannels()}>
-            {(ch) => (
-              <div
-                class={styles.item}
-                onClick={() => setSelectedChannel(ch.id)}
-              >
-                <span class={styles.hash}>#</span>
-                <span class={styles.itemName}>{ch.name}</span>
-              </div>
+        <Show when={!sections.loading && sections()} fallback={<div class={styles.loading}>Loading sections...</div>}>
+          <For each={sections()?.filter(s => !s.is_hidden)}>
+            {(section) => (
+              <>
+                <div class={styles.sectionHeader} onClick={() => toggleSection(section.channel_section_id)} style={{ cursor: "pointer", "user-select": "none" }}>
+                  <span style={{ display: "inline-block", transition: "transform 0.2s", transform: collapsedSections()[section.channel_section_id] ? "rotate(-90deg)" : "rotate(0deg)", "margin-right": "4px" }}>▼</span>
+                  {section.name || (section.type === "channels" ? "Channels" : section.type === "direct_messages" ? "Direct Messages" : section.type === "slack_connect" ? "Slack Connect" : section.type === "stars" ? "Starred" : section.type === "agents" ? "Agents" : section.type === "salesforce_records" ? "Salesforce" : section.type === "recent_apps" ? "Recent Apps" : section.type)}
+                </div>
+                <Show when={!collapsedSections()[section.channel_section_id]}>
+                  <For each={section.type === "channels" ? orphanedChannels() : []}>
+                    {(ch) => (
+                      <div class={styles.item} onClick={() => setSelectedChannel(ch.id)} data-selected={selectedChannel() === ch.id ? "true" : undefined}>
+                        <span class={styles.hash}>#</span>
+                        <span class={styles.itemName}>{ch.name}</span>
+                      </div>
+                    )}
+                  </For>
+                  <For each={section.type === "direct_messages" ? orphanedDMs() : []}>
+                    {(dm) => (
+                      <div class={styles.item} onClick={() => setSelectedChannel(dm.id)} data-selected={selectedChannel() === dm.id ? "true" : undefined}>
+                        <Show when={dm.is_mpdm && dm.mpdm_avatars.length > 0}>
+                          <div class={styles.itemAvatarGroup}>
+                            <For each={dm.mpdm_avatars.slice(0, 2)}>
+                              {(avatarUrl) => <img src={avatarUrl} class={styles.itemAvatarStacked} />}
+                            </For>
+                          </div>
+                        </Show>
+                        <Show when={!dm.is_mpdm && dm.avatar}>
+                          <img src={dm.avatar!} class={styles.itemAvatar} />
+                        </Show>
+                        <span class={styles.itemName}>{dm.name}</span>
+                      </div>
+                    )}
+                  </For>
+                  <For each={section.type === "recent_apps" ? orphanedApps() : []}>
+                    {(dm) => (
+                      <div class={styles.item} onClick={() => setSelectedChannel(dm.id)} data-selected={selectedChannel() === dm.id ? "true" : undefined}>
+                        <Show when={!dm.is_mpdm && dm.avatar}>
+                          <img src={dm.avatar!} class={styles.itemAvatar} />
+                        </Show>
+                        <span class={styles.itemName}>{dm.name}</span>
+                      </div>
+                    )}
+                  </For>
+                  <For each={section.channel_ids_page?.channel_ids || []}>
+                    {(id) => {
+                      const ch = channels()?.find(c => c.id === id);
+                      if (ch) {
+                        return (
+                          <div class={styles.item} onClick={() => setSelectedChannel(ch.id)} data-selected={selectedChannel() === ch.id ? "true" : undefined}>
+                            <span class={styles.hash}>#</span>
+                            <span class={styles.itemName}>{ch.name}</span>
+                          </div>
+                        );
+                      }
+                      const dm = dmList().find(d => d.id === id);
+                      if (dm) {
+                        return (
+                          <div class={styles.item} onClick={() => setSelectedChannel(dm.id)} data-selected={selectedChannel() === dm.id ? "true" : undefined}>
+                            <Show when={dm.is_mpdm && dm.mpdm_avatars.length > 0}>
+                              <div class={styles.itemAvatarGroup}>
+                                <For each={dm.mpdm_avatars.slice(0, 2)}>
+                                  {(avatarUrl) => <img src={avatarUrl} class={styles.itemAvatarStacked} />}
+                                </For>
+                              </div>
+                            </Show>
+                            <Show when={!dm.is_mpdm && dm.avatar}>
+                              <img src={dm.avatar!} class={styles.itemAvatar} />
+                            </Show>
+                            <span class={styles.itemName}>{dm.name}</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  </For>
+                </Show>
+              </>
             )}
           </For>
-        </Show>
-
-        <div class={styles.sectionHeader}>Direct Messages</div>
-        <Show
-          when={!ims.loading && !channels.loading}
-          fallback={<div class={styles.loading}>Loading...</div>}
-        >
-          <For each={dmList().filter(d => !d.is_bot)}>
-            {(item) => (
-              <div class={styles.item} onClick={() => setSelectedChannel(item.id)}>
-                <Show when={item.is_mpdm && item.mpdm_avatars.length > 0}>
-                  <div class={styles.itemAvatarGroup}>
-                    <For each={item.mpdm_avatars.slice(0, 2)}>
-                      {(avatarUrl) => <img src={avatarUrl} class={styles.itemAvatarStacked} />}
-                    </For>
-                  </div>
-                </Show>
-                <Show when={!item.is_mpdm && item.avatar}>
-                  <img src={item.avatar!} class={styles.itemAvatar} />
-                </Show>
-                <span class={styles.itemName}>{item.name}</span>
-              </div>
-            )}
-          </For>
-        </Show>
-
-        <Show when={dmList().some(d => d.is_bot)}>
-          <div class={styles.sectionHeader}>Bots</div>
-          <For each={dmList().filter(d => d.is_bot)}>
-            {(item) => (
-              <div class={styles.item} onClick={() => setSelectedChannel(item.id)}>
-                <Show when={item.avatar}>
-                  <img src={item.avatar!} class={styles.itemAvatar} />
-                </Show>
-                {item.name}
-              </div>
-            )}
-          </For>
+          
         </Show>
 
         <div class={styles.spacer} />

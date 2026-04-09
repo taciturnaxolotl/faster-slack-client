@@ -5,6 +5,8 @@ import (
 	"fastslack/slack"
 	"fastslack/store"
 	"fmt"
+	"encoding/json"
+	"os"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 )
@@ -97,6 +99,14 @@ func (s *SlackService) Boot() error {
 			return fmt.Errorf("userBoot failed for %s: %w", teamID, err)
 		}
 
+		sectionsResp, err := s.Client.GetChannelSections(teamID)
+		if err != nil {
+			fmt.Printf("GetChannelSections failed for %s: %v\n", teamID, err)
+		} else {
+			rawSections, _ := json.Marshal(sectionsResp)
+			os.WriteFile("sections_debug.json", rawSections, 0644)
+		}
+
 		var state *store.WorkspaceState
 		if cached != nil {
 			cached.MergeBoot(resp)
@@ -141,6 +151,31 @@ func (s *SlackService) GetChannels(teamID string) []shared.Channel {
 		channels = append(channels, ch)
 	}
 	return channels
+}
+
+func (s *SlackService) GetChannelSections(teamID string) ([]shared.ChannelSection, error) {
+	resp, err := s.Client.GetChannelSections(teamID)
+	if err != nil {
+		return nil, err
+	}
+	return resp.ChannelSections, nil
+}
+
+func (s *SlackService) GetChannelSectionsPrefs(teamID string) string {
+	state, ok := s.States[teamID]
+	if !ok {
+		return ""
+	}
+	return state.ChannelSections
+}
+
+func (s *SlackService) SetChannelSectionCollapsed(teamID string, prefsJSON string) error {
+	state, ok := s.States[teamID]
+	if ok {
+		state.ChannelSections = prefsJSON
+		go store.SaveWorkspace(teamID, state)
+	}
+	return s.Client.SetChannelSectionCollapsed(teamID, prefsJSON)
 }
 
 func (s *SlackService) GetMessages(teamID, channelID, cursor string) (*shared.MessagesResponse, error) {

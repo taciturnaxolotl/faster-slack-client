@@ -13,44 +13,60 @@ export function Boot(): $CancellablePromise<void> {
     return $Call.ByID(380504861);
 }
 
+export function GetChannelSections(teamID: string): $CancellablePromise<shared$0.ChannelSection[]> {
+    return $Call.ByID(2900447686, teamID).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+export function GetChannelSectionsPrefs(teamID: string): $CancellablePromise<string> {
+    return $Call.ByID(3219932072, teamID);
+}
+
 export function GetChannels(teamID: string): $CancellablePromise<shared$0.Channel[]> {
     return $Call.ByID(3213025799, teamID).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
 export function GetIMs(teamID: string): $CancellablePromise<shared$0.Im[]> {
     return $Call.ByID(2667984826, teamID).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
 export function GetMessages(teamID: string, channelID: string, cursor: string): $CancellablePromise<shared$0.MessagesResponse | null> {
     return $Call.ByID(1012973511, teamID, channelID, cursor).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
 export function ResolveEmojis(teamID: string, names: string[]): $CancellablePromise<shared$0.Emoji[]> {
     return $Call.ByID(1381900964, teamID, names).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
 export function ResolveUsers(teamID: string, userIDs: string[]): $CancellablePromise<shared$0.UserProfile[]> {
     return $Call.ByID(2167812529, teamID, userIDs).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
+export function SetChannelSectionCollapsed(teamID: string, prefsJSON: string): $CancellablePromise<void> {
+    return $Call.ByID(4275221430, teamID, prefsJSON);
+}
+
 // Private type creation functions
-const $$createType0 = shared$0.Channel.createFrom;
+const $$createType0 = shared$0.ChannelSection.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = shared$0.Im.createFrom;
+const $$createType2 = shared$0.Channel.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = shared$0.MessagesResponse.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = shared$0.Emoji.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = shared$0.UserProfile.createFrom;
+const $$createType4 = shared$0.Im.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = shared$0.MessagesResponse.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = shared$0.Emoji.createFrom;
 const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = shared$0.UserProfile.createFrom;
+const $$createType11 = $Create.Array($$createType10);

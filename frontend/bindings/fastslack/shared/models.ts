@@ -96,6 +96,67 @@ export class Channel {
     }
 }
 
+export class ChannelSection {
+    "channel_section_id": string;
+    "name": string;
+    "type": string;
+    "emoji": string;
+    "next_channel_section_id": string | null;
+    "last_updated": number;
+    "channel_ids_page": {"channel_ids": string[], "count": number, "cursor": string};
+    "is_redacted": boolean;
+    "is_hidden": boolean;
+    "usergroup_id": string;
+
+    /** Creates a new ChannelSection instance. */
+    constructor($$source: Partial<ChannelSection> = {}) {
+        if (!("channel_section_id" in $$source)) {
+            this["channel_section_id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("emoji" in $$source)) {
+            this["emoji"] = "";
+        }
+        if (!("next_channel_section_id" in $$source)) {
+            this["next_channel_section_id"] = null;
+        }
+        if (!("last_updated" in $$source)) {
+            this["last_updated"] = 0;
+        }
+        if (!("channel_ids_page" in $$source)) {
+            this["channel_ids_page"] = {"channel_ids": [], "count": 0, "cursor": ""};
+        }
+        if (!("is_redacted" in $$source)) {
+            this["is_redacted"] = false;
+        }
+        if (!("is_hidden" in $$source)) {
+            this["is_hidden"] = false;
+        }
+        if (!("usergroup_id" in $$source)) {
+            this["usergroup_id"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChannelSection instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChannelSection {
+        const $$createField6_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("channel_ids_page" in $$parsedSource) {
+            $$parsedSource["channel_ids_page"] = $$createField6_0($$parsedSource["channel_ids_page"]);
+        }
+        return new ChannelSection($$parsedSource as Partial<ChannelSection>);
+    }
+}
+
 export class Emoji {
     "name": string;
     "value": string;
@@ -173,7 +234,7 @@ export class Im {
      * Creates a new Im instance from a string or object.
      */
     static createFrom($$source: any = {}): Im {
-        const $$createField7_0 = $$createType6;
+        const $$createField7_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("properties" in $$parsedSource) {
             $$parsedSource["properties"] = $$createField7_0($$parsedSource["properties"]);
@@ -249,7 +310,7 @@ export class MessagesResponse {
      * Creates a new MessagesResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): MessagesResponse {
-        const $$createField0_0 = $$createType8;
+        const $$createField0_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("messages" in $$parsedSource) {
             $$parsedSource["messages"] = $$createField0_0($$parsedSource["messages"]);
@@ -278,7 +339,7 @@ export class SlackSession {
      * Creates a new SlackSession instance from a string or object.
      */
     static createFrom($$source: any = {}): SlackSession {
-        const $$createField1_0 = $$createType10;
+        const $$createField1_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("workspaces" in $$parsedSource) {
             $$parsedSource["workspaces"] = $$createField1_0($$parsedSource["workspaces"]);
@@ -409,9 +470,12 @@ const $$createType5 = $Create.Struct({
     "posting_restricted_to": $$createType4,
 });
 const $$createType6 = $Create.Struct({
+    "channel_ids": $$createType0,
+});
+const $$createType7 = $Create.Struct({
     "tabs": $$createType2,
 });
-const $$createType7 = Message.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = WorkspaceSession.createFrom;
-const $$createType10 = $Create.Map($Create.Any, $$createType9);
+const $$createType8 = Message.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = WorkspaceSession.createFrom;
+const $$createType11 = $Create.Map($Create.Any, $$createType10);

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slack API WS Explorer</title>
+    <style>
+        body {
+            font-family: 'SF Mono', Consolas, Monaco, monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            margin: 0;
+        }
+        h2 {
+            color: #569cd6;
+            margin-top: 0;
+        }
+        #controls {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+        #log {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .msg {
+            background: #252526;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .msg-type {
+            color: #4ec9b0;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+        .sys-msg {
+            color: #ce9178;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+    </style>
+</head>
+<body>
+    <h2>Slack WebSocket Explorer</h2>
+    <div id="controls">
+        <button id="clearBtn">Clear Log</button>
+        <span id="status" style="margin-left: 15px; color: #ce9178;">Disconnected</span>
+    </div>
+    
+    <div id="log"></div>
+
+    <script>
+        // ==========================================
+        // TYPE DEFINITIONS (Discriminated Union)
+        // ==========================================
+
+        /**
+         * @typedef {Object} BaseEvent
+         * @property {string} type
+         */
+
+        /**
+         * @typedef {Object} HelloEvent
+         * @property {'hello'} type
+         * @property {number} num_connections
+         * @property {Object} connection_info
+         * @property {string} connection_info.app_id
+         */
+
+        /**
+         * @typedef {Object} MessageEvent
+         * @property {'message'} type
+         * @property {string} channel
+         * @property {string} user
+         * @property {string} text
+         * @property {string} ts
+         * @property {string} [subtype]
+         */
+
+        /**
+         * @typedef {Object} UserTypingEvent
+         * @property {'user_typing'} type
+         * @property {string} channel
+         * @property {string} user
+         */
+
+        /**
+         * @typedef {Object} PresenceChangeEvent
+         * @property {'presence_change'} type
+         * @property {string} user
+         * @property {'active' | 'away'} presence
+         */
+
+        /**
+         * The discriminated union of all possible Slack events
+         * @typedef {HelloEvent | MessageEvent | UserTypingEvent | PresenceChangeEvent | BaseEvent} AnySlackEvent
+         */
+
+        // ==========================================
+        // APP LOGIC
+        // ==========================================
+
+        const url = "wss://wss-primary.slack.com/?token=xoxc-9991336848048-6096548277490-10009535028705-9afc3ced86f80df223c4ac5a390bde3edf733f4ad10e6050cf300d0388c2b3af&sync_desync=1&slack_client=desktop&start_args=%3Fagent%3Dclient%26org_wide_aware%3Dtrue%26agent_version%3D1775723860%26eac_cache_ts%3Dtrue%26cache_ts%3D0%26name_tagging%3Dtrue%26only_self_subteams%3Dtrue%26connect_only%3Dtrue%26ms_latest%3Dtrue&no_query_on_subscribe=1&flannel=3&lazy_channels=1&gateway_server=T09V59WQY1E-4&enterprise_id=E09V59WQY1E&batch_presence_aware=1";
+
+        const logEl = document.getElementById('log');
+        const statusEl = document.getElementById('status');
+        
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            logEl.innerHTML = '';
+        });
+
+        function logData(data, isSystem = false) {
+            const div = document.createElement('div');
+            div.className = 'msg';
+            
+            if (isSystem) {
+                div.innerHTML = `<span class="sys-msg">[SYSTEM] ${data}</span>`;
+            } else {
+                const typeLabel = data.type ? `<span class="msg-type">${data.type}</span><br>` : '';
+                div.innerHTML = `${typeLabel}${JSON.stringify(data, null, 2)}`;
+            }
+            
+            logEl.prepend(div);
+            console.log(data);
+        }
+
+        /**
+         * Handles incoming events and uses type narrowing based on the 'type' field
+         * @param {AnySlackEvent} event
+         */
+        function handleSlackEvent(event) {
+            // Log the raw data first
+            logData(event);
+
+            // Type narrowing based on the discriminated union 'type' field
+            switch (event.type) {
+                case 'hello':
+                    console.log(`[Hello] Connections: ${event.num_connections}`);
+                    break;
+                case 'message':
+                    console.log(`[Message in ${event.channel}] ${event.user}: ${event.text}`);
+                    break;
+                case 'user_typing':
+                    console.log(`[Typing] User ${event.user} is typing in ${event.channel}`);
+                    break;
+                case 'presence_change':
+                    console.log(`[Presence] User ${event.user} is now ${event.presence}`);
+                    break;
+                default:
+                    console.log(`[Unhandled Type] ${event.type}`, event);
+                    break;
+            }
+        }
+
+        try {
+            const ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                statusEl.textContent = 'Connected ✓';
+                statusEl.style.color = '#4ec9b0';
+                logData('WebSocket connection opened successfully.', true);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleSlackEvent(data);
+                    
+                    if (data.type === 'ping') {
+                        ws.send(JSON.stringify({ type: 'pong', reply_to: data.id }));
+                    }
+                } catch (e) {
+                    logData(`Failed to parse message: ${event.data}`, true);
+                }
+            };
+
+            ws.onerror = (error) => {
+                statusEl.textContent = 'Error ⚠️';
+                statusEl.style.color = '#f48771';
+                logData('WebSocket encountered an error. Check console.', true);
+            };
+
+            ws.onclose = (event) => {
+                statusEl.textContent = 'Disconnected';
+                statusEl.style.color = '#ce9178';
+                logData(`WebSocket closed. Code: ${event.code}`, true);
+            };
+
+        } catch (err) {
+            logData(`Failed to initialize WebSocket: ${err.message}`, true);
+        }
+    </script>
+</body>
+</html>

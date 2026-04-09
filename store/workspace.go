@@ -13,6 +13,7 @@ type WorkspaceState struct {
 	MinChannelUpdated int64                     `json:"min_channel_updated"`
 	Channels          map[string]shared.Channel `json:"channels"`
 	IMs               map[string]shared.Im      `json:"ims"`
+	ChannelSections   string                    `json:"channel_sections"`
 }
 
 func cacheDir() string {
@@ -66,6 +67,7 @@ func StateFromBoot(resp *shared.UserbootResponse) *WorkspaceState {
 	state := &WorkspaceState{
 		Channels: channels,
 		IMs:      ims,
+		ChannelSections: resp.Prefs.ChannelSections,
 	}
 	state.updateMinChannelUpdated()
 	return state
@@ -77,6 +79,9 @@ func (s *WorkspaceState) MergeBoot(resp *shared.UserbootResponse) {
 	}
 	for _, im := range resp.Ims {
 		s.IMs[im.ID] = im
+	}
+	if resp.Prefs.ChannelSections != "" {
+		s.ChannelSections = resp.Prefs.ChannelSections
 	}
 	s.updateMinChannelUpdated()
 }

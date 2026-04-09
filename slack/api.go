@@ -5,6 +5,7 @@ import (
 	"fastslack/shared"
 	"fmt"
 	"net/url"
+	"os"
 )
 
 func (c *Client) UserBoot(teamID string, minChannelUpdated int64) (*shared.UserbootResponse, error) {
@@ -20,6 +21,11 @@ func (c *Client) UserBoot(teamID string, minChannelUpdated int64) (*shared.Userb
 	raw, err := c.DoWithQuery(teamID, "client.userBoot", params, query)
 	if err != nil {
 		return nil, err
+	}
+	
+	// log raw to file so we can inspect
+	if err := os.WriteFile("boot_debug.json", raw, 0644); err != nil {
+		fmt.Printf("failed to write debug boot: %v\n", err)
 	}
 
 	var resp shared.UserbootResponse
@@ -110,4 +116,64 @@ func (c *Client) GetEmojisInfo(teamID string, names []string) ([]shared.Emoji, e
 	}
 
 	return result.Results, nil
+}
+
+func (c *Client) GetChannelSections(teamID string) (*shared.ChannelSectionsResponse, error) {
+	var allSections []shared.ChannelSection
+	var lastUpdated int64
+	cursor := ""
+
+	for {
+		params := url.Values{}
+		if cursor != "" {
+			params.Set("cursor", cursor)
+		}
+
+		raw, err := c.Do(teamID, "users.channelSections.list", params)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp shared.ChannelSectionsResponse
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			return nil, err
+		}
+
+		// Ensure we don't append duplicate sections across pages
+		for _, sec := range resp.ChannelSections {
+			exists := false
+			for _, existing := range allSections {
+				if existing.ID == sec.ID {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				allSections = append(allSections, sec)
+			}
+		}
+		
+		lastUpdated = resp.LastUpdated // Update with the latest lastUpdated if any
+
+		if resp.Cursor == "" || resp.Cursor == cursor || len(resp.ChannelSections) == 0 {
+			break
+		}
+		cursor = resp.Cursor
+	}
+
+	return &shared.ChannelSectionsResponse{
+		Ok:              true,
+		ChannelSections: allSections,
+		LastUpdated:     lastUpdated,
+		Count:           len(allSections),
+	}, nil
+}
+
+func (c *Client) SetChannelSectionCollapsed(teamID string, prefsJSON string) error {
+	params := url.Values{}
+	params.Set("name", "channel_sections")
+	params.Set("value", prefsJSON)
+
+	_, err := c.Do(teamID, "users.prefs.set", params)
+	return err
 }

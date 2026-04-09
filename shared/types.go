@@ -149,6 +149,9 @@ type UserbootResponse struct {
 			Image132     string `json:"image_132"`
 		} `json:"icon"`
 	} `json:"workspaces"`
+	Prefs struct {
+		ChannelSections string `json:"channel_sections"`
+	} `json:"prefs"`
 }
 
 type MessagesResponse struct {
@@ -185,4 +188,29 @@ type Emoji struct {
 	Name    string `json:"name"`
 	Url     string `json:"value"`
 	Updated int64  `json:"updated"`
+}
+
+type ChannelSection struct {
+	ID                  string `json:"channel_section_id"`
+	Name                string `json:"name"`
+	Type                string `json:"type"`
+	Emoji               string `json:"emoji"`
+	NextChannelSectionID *string `json:"next_channel_section_id"`
+	LastUpdated         int64  `json:"last_updated"`
+	ChannelIDsPage      struct {
+		ChannelIDs []string `json:"channel_ids"`
+		Count      int      `json:"count"`
+		Cursor     string   `json:"cursor"`
+	} `json:"channel_ids_page"`
+	IsRedacted bool `json:"is_redacted"`
+	IsHidden   bool `json:"is_hidden"`
+	UsergroupID string `json:"usergroup_id"`
+}
+
+type ChannelSectionsResponse struct {
+	Ok              bool             `json:"ok"`
+	ChannelSections []ChannelSection `json:"channel_sections"`
+	LastUpdated     int64            `json:"last_updated"`
+	Count           int              `json:"count"`
+	Cursor          string           `json:"cursor"`
 }

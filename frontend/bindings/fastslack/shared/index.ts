@@ -3,6 +3,7 @@
 
 export {
     Channel,
+    ChannelSection,
     Emoji,
     Im,
     Message,
